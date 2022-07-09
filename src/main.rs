@@ -23,13 +23,13 @@ fn main() {
     let contents = match fs::read_to_string(&args.input) {
         Ok(text) => text,
         Err(_) => {
-            util::error(
-                &args.input,
-                "",
-                "E0000",
-                "File not found",
-                0..0,
-            );
+            util::error(util::Error {
+                file: &args.input,
+                line: &args.input,
+                message: "File not found",
+                code: "E0000",
+                label: false,
+            });
             String::new()
         }
     };
