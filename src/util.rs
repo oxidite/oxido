@@ -1,59 +1,49 @@
-use crate::{store::Store, token::Token};
-use colored::Colorize;
+use crate::errors::syntax;
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::files::SimpleFiles;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
+use std::ops::Range;
 
-pub fn error(i: Option<Token>, v: Token, store: &Store) -> String {
-    let syntax_error = "SyntaxError:".red().bold();
-    format!(
-        "--> {}
-|{}. {}
-|{} Expected {} found {} instead!
-|Exiting due to previous error
-       ",
-        store.file_name,
-        store.lines.at.to_string().blue(),
-        store.lines.text.underline(),
-        syntax_error,
-        v.to_string().cyan().bold(),
-        i.unwrap().to_string().cyan().bold(),
-    )
+pub struct Error<'a> {
+    file: &'a str,
+    line: &'a str,
+    code: &'a str,
+    message: &'a str,
+    label: bool,
 }
 
-pub fn check_syntax(i: Option<Token>, v: Token, store: &Store) {
-    if i.unwrap() != v {
-        println!("{}", error(i, v, store));
-        std::process::exit(1);
+pub fn build_error(error: Error) -> (Diagnostic<usize>, SimpleFiles<&str, &str>) {
+    let mut files = SimpleFiles::new();
+
+    let file_id = files.add(error.file, error.line);
+
+    let diagnostic: Diagnostic<usize> = Diagnostic::error()
+        .with_message(error.message)
+        .with_code(error.code);
+
+    if error.label {
+        diagnostic.with_labels(vec![Label::primary(file_id, 0..error.line.len())]);
     }
+
+    (diagnostic, files)
 }
 
-pub fn parse_ident(x: &String, store: &Store) -> String {
-    if x.chars()
-        .map(|f| f.is_alphabetic())
-        .collect::<Vec<bool>>()
-        .contains(&true)
-    {
-        let mut flag = false;
-        x.trim()
-            .split(" ")
-            .map(|f| {
-                if f.starts_with("\"") {
-                    flag = !flag;
-                    f.to_string()
-                } else if !f
-                    .chars()
-                    .map(|f| f.is_alphabetic())
-                    .collect::<Vec<bool>>()
-                    .contains(&false)
-                    && flag == false
-                    && f != "true"
-                    && f != "false"
-                {
-                    store.variables.get(f).unwrap().to_string()
-                } else {
-                    f.to_string()
-                }
-            })
-            .collect::<String>()
-    } else {
-        x.to_string()
-    }
+pub fn error(error: Error) {
+    let (diagnostic, files) = build_error(error);
+
+    let writer = StandardStream::stderr(ColorChoice::Always);
+    let config = codespan_reporting::term::Config::default();
+
+    term::emit(&mut writer.lock(), &config, &files, &diagnostic).unwrap();
+}
+
+pub fn syntax_error(file: &str, line: &str, expection: &str, founded: &str) {
+    error(Error {
+        file,
+        line,
+        code: "E0001",
+        message: &syntax(expection, founded),
+        label: true,
+    });
 }

@@ -76,6 +76,6 @@ pub enum Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(f, "{:#?}", self)
+        write!(f, "{:?}", self)
     }
 }
