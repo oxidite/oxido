@@ -1,9 +1,13 @@
 use clap::Parser;
 use std::fs;
 
+use crate::errors::Error;
+
 mod errors;
+mod lexer;
 mod token;
-mod util;
+mod parser;
+mod compiler;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -18,21 +22,23 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    //unsure if it has to be all caps, maybe experiment with it yourself :shrug:
-    println!("{}", args.input);
     let contents = match fs::read_to_string(&args.input) {
         Ok(text) => text,
         Err(_) => {
-            util::error(util::Error {
-                file: &args.input,
-                line: &args.input,
-                message: "File not found",
-                code: "E0000",
-                label: false,
-            });
+            Error::throw(
+                &args.input,
+                &args.input,
+                0,
+                &format!("File '{}' was not found", args.input),
+                false,
+            );
             String::new()
         }
     };
 
-    println!("{contents}");
+    let lexer = lexer::lex(&contents);
+
+    parser::parse(lexer);
+
+    // println!("{:?}", lexer.next());
 }
